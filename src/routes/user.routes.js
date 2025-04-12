@@ -1,4 +1,4 @@
-import { Router, Router } from "express";
+import { Router } from "express";
 import { registerUser } from "../controllers/user.controllers.js"
 import { userRegistrationValidator } from "../validators/user.validators.js";
 import { validate } from "../middlewares/validator.middlewares.js";
