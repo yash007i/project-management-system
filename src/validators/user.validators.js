@@ -11,7 +11,7 @@ const userRegistrationValidator = () => {
             .trim()
             .notEmpty().withMessage("Username is required.")
             .isLength({min : 3}).withMessage("Username should be at least minimum 3 length.")
-            .isLength({min : 13}).withMessage("Username can not be maximum 13 char."),
+            .isLength({max : 13}).withMessage("Username can not be maximum 13 char."),
         
         body("password")
             .notEmpty().withMessage("Password is required.")
@@ -21,7 +21,7 @@ const userRegistrationValidator = () => {
             .trim()
             .notEmpty().withMessage("Fullname is required.")
             .isLength({min : 3}).withMessage("Fullname should be at least minimum 3 length.")
-            .isLength({min : 23}).withMessage("Fullname can not be maximum 23 char.")
+            .isLength({max : 23}).withMessage("Fullname can not be maximum 23 char.")
     ]
 }
 
