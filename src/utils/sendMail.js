@@ -3,8 +3,8 @@ import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
 
 const sendMail = async (options) => {
-    console.log("Options",options);
-    console.log("Options mailgenContent",options.mailgenContent);
+    // console.log("Options",options);
+    // console.log("Options mailgenContent",options.mailgenContent);
     
     const mailGenerator = new Mailgen({
         theme: 'default',

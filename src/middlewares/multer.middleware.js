@@ -5,14 +5,13 @@ const storage = multer.diskStorage({
       cb(null, './public/images')
     },
     filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-      cb(null, file.fieldname + '-' + uniqueSuffix)
+      cb(null, file.originalname)
     }
   });
   
 export const upload = multer({ 
     storage: storage,
     limits: {
-        fileSize : 1 * 1000 * 1000,
+        fileSize : 10 * 1000 * 1000,
     },
 });
