@@ -4,9 +4,27 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { sendMail,
-        emailVerificationMailgenContent,
-        forgotPasswordMailgenContent } from "../utils/sendMail.js"
-const registerUser = asyncHandler(async (req, res) => {
+    emailVerificationMailgenContent,
+    forgotPasswordMailgenContent } from "../utils/sendMail.js"
+import crypto from "crypto"
+
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
+        const user = await User.findById(userId);
+        const accessToken =  user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave : false });
+
+        return { accessToken, refreshToken }
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong, while generated tokens");
+    }
+}
+
+const registerUser = asyncHandler (async (req, res) => {
     // Step to follow :
     // get the user data from frontend
     // validation - not empty --> done by validator & middleware 
@@ -82,7 +100,88 @@ const registerUser = asyncHandler(async (req, res) => {
 
 })
 
+const loginUser = asyncHandler (async (req, res) => {
+
+    // Follow below step :
+    // req body -> data
+    // username or email
+    // find the user
+    // email verification check
+    // password check
+    // access token and refresh token generated
+    // generate cookie options
+    // send a securely cookie 
+    // send response
+
+    const { email, password } = req.body;
+
+    const user = await User.findOne({
+        email
+    });
+
+    if(!user){
+        throw new ApiError(400, "User not found, Please register first.")
+    }
+
+    if(!user.isEmailVerified) {
+        throw new ApiError(401, "User is not verified, Please verify your self.")
+    }
+
+    const isPasswordCorrect = await user.isPasswordCorrect(password);
+
+    if(!isPasswordCorrect){
+        throw new ApiError(401, "Invalid Password");
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+    const loggedInUser = await User
+    .findOne(user._id)
+    .select("-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry");
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+        maxAge: 24 * 60 * 60 * 1000,
+    }
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(new ApiResponse(200, loggedInUser, "User loggin successfully."))
+})
+
+const verifyEmail = asyncHandler (async (req, res) => {
+    const { token } = req.query;
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+        $and: [
+        { emailVerificationToken: hashedToken },
+        { emailVerificationExpiry: { $gt: Date.now() } },
+        ],
+    });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiry = undefined;
+    await user.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, "Email verified successfully"));
+})
+
+const logoutUser = asyncHandler (async (req, res) => {
+
+})
 export {
     registerUser,
-
+    loginUser,
+    verifyEmail,
+    logoutUser
 }
