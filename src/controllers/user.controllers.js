@@ -9,6 +9,13 @@ import { sendMail,
 import crypto from "crypto"
 
 const generateAccessAndRefreshTokens = async (userId) => {
+    // Follow below step : 
+    // find user useing giveing userID
+    // generate access and refersh Token useing generate method
+    // set refresh token in DB
+    // save user
+    // return access and refresh token
+
     try {
         const user = await User.findById(userId);
         const accessToken =  user.generateAccessToken();
@@ -152,6 +159,15 @@ const loginUser = asyncHandler (async (req, res) => {
 })
 
 const verifyEmail = asyncHandler (async (req, res) => {
+    // Follow this step :
+    // fetch token from req query
+    // update token useing crypto
+    // find user useing token
+    // set isEmailVeridied as a true
+    // set emailVerificationToken and emailVerificationExpiry
+    // save user in db
+    // return res
+
     const { token } = req.query;
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -177,10 +193,18 @@ const verifyEmail = asyncHandler (async (req, res) => {
 })
 
 const logoutUser = asyncHandler (async (req, res) => {
+    // Follow this step : 
+    // find user useing req.user._id
+    // check user
+    // return res
     const user = await User.findById(req.user._id)
     .updateOne({
         refreshToken : ""
     });
+
+    if(!user) {
+        throw new ApiError(401, "User not found.")
+    }
 
     return res.status(200)
     .cookie("accessToken", "")
@@ -190,9 +214,32 @@ const logoutUser = asyncHandler (async (req, res) => {
     );
 
 })
+
+const getCurrentUser = asyncHandler (async (req, res) => {
+    // Follow this step : 
+    // find userID -> req.user._id
+    // find user
+    // check user
+    // return res 
+
+    const userId =req.user?._id;
+
+    const user = await User.findById(userId)
+    .select("-password -refreshToken -isEmailVerified")
+
+    if(!user) {
+        throw new ApiError(401, "User not found while getting a user.")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, "User data found successfully", user)
+    )
+})
 export {
     registerUser,
     loginUser,
     verifyEmail,
-    logoutUser
+    logoutUser,
+    getCurrentUser
 }
