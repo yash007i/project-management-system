@@ -177,6 +177,17 @@ const verifyEmail = asyncHandler (async (req, res) => {
 })
 
 const logoutUser = asyncHandler (async (req, res) => {
+    const user = await User.findById(req.user._id)
+    .updateOne({
+        refreshToken : ""
+    });
+
+    return res.status(200)
+    .cookie("accessToken", "")
+    .cookie("refreshToken", "")
+    .json(
+        new ApiResponse(200, "User logout successfully.")
+    );
 
 })
 export {
