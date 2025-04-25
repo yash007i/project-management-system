@@ -7,6 +7,7 @@ import { sendMail,
     emailVerificationMailgenContent,
     forgotPasswordMailgenContent } from "../utils/sendMail.js"
 import crypto from "crypto"
+import jwt from "jsonwebtoken"
 
 const generateAccessAndRefreshTokens = async (userId) => {
     // Follow below step : 
@@ -236,10 +237,121 @@ const getCurrentUser = asyncHandler (async (req, res) => {
         new ApiResponse(200, "User data found successfully", user)
     )
 })
+
+const refreshAccessToken = asyncHandler (async (req, res) => {
+    const { refreshToken } = req.cookies
+
+    if(! refreshToken) {
+        throw new ApiError(
+            400,
+            "Unauthorisezed user, Refresh Token not found."
+        )
+    }
+
+    try {
+        const decodedToken  = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
+
+        const user = await User.findById(decodedToken._id)
+
+        if(!user) {
+            throw new ApiError(404, "User not found.")
+        }
+
+        if( user.refreshToken !== refreshToken) {
+            throw new ApiError(
+                403,
+                "Refresh token does not match. Possible token reuse detected.",
+              );
+        }
+
+        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+        user.refreshToken = refreshToken
+        await user.save()
+
+        const cookieOption = {
+            httpOnly: true,
+            secure: true,
+            maxAge: 24 * 60 * 60 * 1000,
+        };
+
+        res.cookie("accessToken", accessToken, options)
+        res.cookie("refreshToken", refreshToken, options)
+        return res.status(200)
+        .json(
+            new ApiResponse(
+                200,
+                "Token refresh successfully."
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401, "Invalid or expired refresh token");
+    }
+})
+
+const forgotPassword = asyncHandler (async (req, res) => {
+    const { email, password, conformPassword } = req.body
+
+    const user = await User.findOne({
+        email
+    })
+
+    if(!user) {
+        throw new ApiError(
+            404,
+            "User not found."
+        )
+    }
+
+    if(password !== conformPassword){
+        throw new ApiError(402, "Password and Conform password are not match.")
+    }
+
+    user.password = conformPassword
+    await user.save()
+    return res.status(200)
+    .json(
+        new ApiResponse(
+            200,
+            "Password reset successfully."
+        )
+    )
+})
+
+const resendEmailVerification = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    const emailVerificationToken = user.generateTemporaryToken();
+    await user.save();
+  
+    //send verification email
+    const verificationURL = `${process.env.BASEURL}/auth/verify-email?token=${emailVerificationToken}`;
+  
+    await sendEmail({
+      email: user.email,
+      subject: "Verify your email address",
+      mailgenContent: emailVerificationMailgenContent(
+        user.username,
+        verificationURL,
+      ),
+    });
+  
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Email verification link sent successfully"));
+  });
+
 export {
     registerUser,
     loginUser,
     verifyEmail,
     logoutUser,
-    getCurrentUser
+    getCurrentUser,
+    refreshAccessToken,
+    forgotPassword,
+    resendEmailVerification,
 }
