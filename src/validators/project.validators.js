@@ -1,4 +1,5 @@
 import { body } from "express-validator";
+import { AvailableUserRoles } from "../utils/constants.js";
 
 const projectCreateValidator = () => {
     return [
@@ -15,6 +16,16 @@ const projectCreateValidator = () => {
     ]
 }
 
+const projectMemberRoleValidator = () => {
+    return [
+    body("role")
+        .trim()
+        .isIn(AvailableUserRoles)
+        .withMessage("Role must be project_admin or member !"),
+    ];
+}
+
 export {
     projectCreateValidator,
+    projectMemberRoleValidator,
 }
