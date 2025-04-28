@@ -5,6 +5,7 @@ import { Project } from "../models/project.models.js"
 import { User } from "../models/user.models.js"
 import { Task } from "../models/task.models.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { SubTask } from "../models/subtask.models.js"
 
 const createTask = asyncHandler( async (req, res) => {
     const{ title, description, projectName, email, status } = req.body
@@ -186,14 +187,101 @@ const updateTask = asyncHandler (async (req, res) => {
     )
 })
 
+const createSubTask = asyncHandler (async (req, res) => {
+    const { title, taskId } = req.body
+    const userId = req.user
+
+    const newSubTask = await SubTask.create({
+        title,
+        task : taskId,
+        createdBy : userId,
+    })
+
+    if(!newSubTask) {
+        throw new ApiError(400, "Error while creating a Subtask")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(
+            200,
+            newSubTask,
+            "Subtask create successfully"
+        )
+    )
+})
+
+const updateSubTask = asyncHandler (async (req, res) => {
+    const { title, isCompleted } = req.body
+    const { subTaskId } = req.params
+    const userId = req.user._id
+
+    const subTask = await SubTask.findById(subTaskId)
+
+    if(!subTask || subTask.createdBy !== userId){
+        throw new ApiError(400,"You are not able to update a subtask")
+    }
+
+    const updatedSubTask = await SubTask.findByIdAndUpdate(
+        {
+            _id : subTaskId
+        },
+        {
+            $set : {
+                title,
+                isCompleted,
+            },
+        },
+        {
+            new : true
+        },
+    )
+
+    if(!updatedSubTask){
+        throw new ApiError(400, "Error while updating a subtask")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedSubTask,
+            "Subtask updated successfully"
+        )
+    )
+})
+
+const deleteSubTask = asyncHandler (async (req, res) => {
+    const subTaskId = req.params.subTaskId
+
+    if(!subTaskId){
+        throw new ApiError(404,"Subtask not found")
+    }
+
+    const deletedSubTask = await SubTask.findByIdAndDelete(subTaskId)
+
+    if(!deletedSubTask){
+        throw new ApiError(400, "Error while deleteing a task")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(
+            200,
+            deletedSubTask,
+            "Subtask delete successfully"
+        )
+    )
+})
+
 export {
-  // createSubTask,
+  createSubTask,
   createTask,
-  // deleteSubTask,
+  deleteSubTask,
   deleteTask,
   getTaskById,
   getTasks,
-  // updateSubTask,
+  updateSubTask,
   updateTask,
 };
   
