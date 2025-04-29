@@ -43,16 +43,8 @@ const createProject = asyncHandler (async (req, res) => {
 })
 
 const getProjects = asyncHandler (async (req, res) => {
-    const { _id } = req.user
-
-    const projects = await Project.aggregate([
-        {
-            $match: {
-                createdBy: _id,
-            },
-        },
-    ])
-
+    const projects = await Project.find()
+    
     if(!projects) {
         throw new ApiError(401,"Project not found")
     }
@@ -74,6 +66,41 @@ const getProjectById = asyncHandler (async (req, res) => {
         _id : projectId,
     })
 
+    const user = await Project.aggregate([
+        {
+            $match : {
+                createdBy : new mongoose.Types.ObjectId(req.user?._id)
+            }
+        },
+        {
+            $lookup : {
+                from : "users",
+                localField : "createdBy",
+                foreignField : "_id",
+                as : "user",
+            }
+        },
+        { 
+            $project : {
+                fullname : 1,
+                email : 1,
+                username : 1,
+                avatar : 1,
+            }
+        },
+        {
+            $addFields : {
+                user : {
+                    $first : "$user"
+                }
+            }
+        }
+    ])
+
+    const data = {
+        project : project,
+        projectCreatedBy : user,
+    }
     if(!project) {
         throw new ApiError(404,"Project not found.")
     }
@@ -82,7 +109,7 @@ const getProjectById = asyncHandler (async (req, res) => {
     .json(
         new ApiResponse(
             200,
-            project,
+            data,
             "Project found successfully"
         )
     )
