@@ -2,6 +2,8 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { ProjectNote } from "../models/note.models.js"
+import { Project } from "../models/project.models.js"
+import mongoose from "mongoose"
 
 const createProjectNote = asyncHandler (async (req, res) => {
     const { content } = req.body
@@ -12,10 +14,16 @@ const createProjectNote = asyncHandler (async (req, res) => {
         throw new ApiError(400,"Provide valid content for create note")
     }
 
+    const project = await Project.findById(projectId)
+
+    if(!project){
+        throw new ApiError(404, "Project not found.")
+    }
+
     const newNote = await ProjectNote.create({
         content,
-        project : projectId,
-        createdBy : user._id,
+        project : new mongoose.Types.ObjectId(projectId),
+        createdBy : new mongoose.Types.ObjectId(user._id),
     })
 
     if(!newNote) {
@@ -33,7 +41,16 @@ const createProjectNote = asyncHandler (async (req, res) => {
 })
 
 const getProjectNotes = asyncHandler (async (req, res) => {
-    const projectNotes = await ProjectNote.find()
+    const {projectId} = req.params
+
+    const project = await Project.findById(projectId)
+
+    if(!project) {
+        throw new ApiError(404, "Project Not Found.")
+    }
+    const projectNotes = await ProjectNote.find({
+        project : new mongoose.Types.ObjectId(projectId)
+    }).populate("createdBy", "username fullname")
 
     if(!projectNotes){
         throw new ApiError(404, "Project notes not found.")
@@ -52,7 +69,8 @@ const getProjectNotes = asyncHandler (async (req, res) => {
 const getProjectNoteById = asyncHandler (async (req, res) => {
     const { noteId } = req.params
 
-    const note = await ProjectNote.findById(noteId);
+    const note = await ProjectNote.findById(noteId)
+    .populate("createdBy", "fullname email");
 
     if(!note) {
         throw new ApiError(404, "Note not found");
@@ -72,6 +90,16 @@ const updateProjectNote = asyncHandler (async (req, res) => {
     const { content } = req.body
     const { projectId, noteId } = req.params
 
+    if(!projectId || !noteId){
+        throw new ApiError(404, "Project or Note Not Found")
+    }
+
+    const project = await Project.findById(projectId)
+
+    if(!project){
+        throw new ApiError(404, "Project Not Found")
+    }
+    
     const updatedProjectNote = await ProjectNote.findByIdAndUpdate(
         {
             _id : noteId
@@ -85,6 +113,9 @@ const updateProjectNote = asyncHandler (async (req, res) => {
         {
             new : true
         }
+    ).populate(
+        "createdBy",
+        "username fullname"
     )
 
     if(!updatedProjectNote){

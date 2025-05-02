@@ -1,6 +1,9 @@
 import jwt from "jsonwebtoken"
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.models.js"
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ProjectMember } from "../models/projectmember.models.js";
+import mongoose from "mongoose";
 
 const isLoggedIn = async (req, res, next) => {
     // Follow this step : 
@@ -35,6 +38,33 @@ const isLoggedIn = async (req, res, next) => {
     }
 }
 
+const validateProjectPermission = (roles = []) => asyncHandler (async (ReadableByteStreamController,res,next) => {
+    const { projectId } = req.params
+
+    if(!projectId){
+        throw new ApiError(404,"Project Not Found")
+    }
+
+    const project = await ProjectMember.findOne({
+        project : mongoose.Types.ObjectId(projectId),
+        user : mongoose.Types.ObjectId(req.user._id),
+    });
+
+    if(!project) {
+        throw new ApiError(401, "Project is invalid")
+    }
+
+    const givenRole = project?.role
+
+    req.user.role = givenRole
+
+    if(!roles.includes(givenRole)){
+        throw new ApiError(402, "You do not have permission to perform this action.")
+    }
+    next()
+})
+
 export {
-    isLoggedIn
+    isLoggedIn,
+    validateProjectPermission,
 }
