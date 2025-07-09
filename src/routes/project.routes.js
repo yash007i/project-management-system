@@ -21,7 +21,7 @@ router.route("/new-project").post(
     validate,
     createProject)
 
-router.route("/get-projects").post(isLoggedIn, getProjects)
+router.route("/get-projects").get(isLoggedIn, getProjects)
 router.route("/get-project-by-id/:projectId").get(isLoggedIn, getProjectById)
 router.route("/update-project/:projectId").put(
     isLoggedIn,
@@ -33,7 +33,7 @@ router.route("/delete-project/:projectId").delete(isLoggedIn, deleteProject)
 
 
 router.route("/project-member/:projectId").get(isLoggedIn,getProjectMembers)
-router.route("/add-member/:projectId/:userId").post(isLoggedIn, addMemberToProject)
+router.route("/add-member/:projectId/:memberId").post(isLoggedIn, addMemberToProject)
 router.route("/delete-member/:memberId").delete(isLoggedIn, deleteMember)
 router.route("/update-role/:memberId").put(
     isLoggedIn,

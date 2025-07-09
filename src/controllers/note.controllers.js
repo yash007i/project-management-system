@@ -23,7 +23,7 @@ const createProjectNote = asyncHandler (async (req, res) => {
     const newNote = await ProjectNote.create({
         content,
         project : new mongoose.Types.ObjectId(projectId),
-        createdBy : new mongoose.Types.ObjectId(user._id),
+        createdBy : new mongoose.Types.ObjectId(user?._id),
     })
 
     if(!newNote) {
@@ -50,7 +50,8 @@ const getProjectNotes = asyncHandler (async (req, res) => {
     }
     const projectNotes = await ProjectNote.find({
         project : new mongoose.Types.ObjectId(projectId)
-    }).populate("createdBy", "username fullname")
+    }) .populate("project","name description createdBy")
+        .populate("createdBy", "fullname email avatar username")
 
     if(!projectNotes){
         throw new ApiError(404, "Project notes not found.")
@@ -70,6 +71,7 @@ const getProjectNoteById = asyncHandler (async (req, res) => {
     const { noteId } = req.params
 
     const note = await ProjectNote.findById(noteId)
+    .populate("project", "name description createdBy")
     .populate("createdBy", "fullname email");
 
     if(!note) {
@@ -115,7 +117,7 @@ const updateProjectNote = asyncHandler (async (req, res) => {
         }
     ).populate(
         "createdBy",
-        "username fullname"
+        "username fullname email"
     )
 
     if(!updatedProjectNote){

@@ -10,6 +10,8 @@ import { createTask,
     createSubTask,
     updateSubTask,
     deleteSubTask,
+    getSubTask,
+    getSubTaskById,
  } from "../controllers/task.controllers.js"
 import { upload } from "../middlewares/multer.middleware.js"
 
@@ -38,6 +40,8 @@ router.route("/sub-task/new").post(isLoggedIn,
     validate,
     createSubTask
 )
+router.route("/sub-task/getAll").get(isLoggedIn, getSubTask)
+router.route("/sub-task/getById/:subtaskId").get(isLoggedIn, getSubTaskById)
 router.route("/sub-task/update/:subTaskId").put(isLoggedIn, updateSubTask)
 router.route("/sub-task/delete/:subTaskId").delete(isLoggedIn, deleteSubTask)
 

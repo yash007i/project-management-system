@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { ProjectMember } from "../models/projectmember.models.js"
 import { User } from "../models/user.models.js"
+import mongoose from "mongoose"
  
 const createProject = asyncHandler (async (req, res) => {
     const { name, description } = req.body
@@ -44,6 +45,7 @@ const createProject = asyncHandler (async (req, res) => {
 
 const getProjects = asyncHandler (async (req, res) => {
     const projects = await Project.find()
+                                .populate("createdBy","avatar fullname email username")
     
     if(!projects) {
         throw new ApiError(401,"Project not found")
@@ -61,15 +63,12 @@ const getProjects = asyncHandler (async (req, res) => {
 
 const getProjectById = asyncHandler (async (req, res) => {
     const { projectId } = req.params
-
-    const project = await Project.findById({
-        _id : projectId,
-    })
-
-    const user = await Project.aggregate([
+    console.log(projectId);
+    
+    const project = await Project.aggregate([
         {
             $match : {
-                createdBy : new mongoose.Types.ObjectId(req.user?._id)
+                _id : new mongoose.Types.ObjectId(projectId)
             }
         },
         {
@@ -77,30 +76,26 @@ const getProjectById = asyncHandler (async (req, res) => {
                 from : "users",
                 localField : "createdBy",
                 foreignField : "_id",
-                as : "user",
-            }
-        },
-        { 
-            $project : {
-                fullname : 1,
-                email : 1,
-                username : 1,
-                avatar : 1,
+                as : "createdBy",
             }
         },
         {
-            $addFields : {
-                user : {
-                    $first : "$user"
+            $unwind: "$createdBy",
+        },
+        {
+            $project: {
+                name: 1,
+                description: 1,
+                createdBy : {
+                    fullname: 1,
+                    email: 1,
+                    username: 1,
+                    avatar: 1,
                 }
             }
         }
     ])
 
-    const data = {
-        project : project,
-        projectCreatedBy : user,
-    }
     if(!project) {
         throw new ApiError(404,"Project not found.")
     }
@@ -109,7 +104,7 @@ const getProjectById = asyncHandler (async (req, res) => {
     .json(
         new ApiResponse(
             200,
-            data,
+            project,
             "Project found successfully"
         )
     )
@@ -173,14 +168,14 @@ const deleteProject = asyncHandler (async (req, res) => {
 
 const addMemberToProject = asyncHandler (async (req, res) => {
     const { projectId, memberId } = req.params
-    const { userId } = req.user._id
-
+    const userId  = req.user._id
+    console.log(userId);
+    
     const user = await User.findById(userId)
 
     if(!user) {
         throw new ApiError(400, "User not found for this project.")
-    }
-
+    }    
     if(user.role !== "admin" || user.role !== "project_admin"){
         throw new ApiError(
             403,
@@ -216,7 +211,8 @@ const getProjectMembers = asyncHandler (async (req, res) => {
     
     const projectMember = await ProjectMember.findById({
         project : projectId
-    })
+    }).populate("project", "name description createdBy")
+        .populate("user", "fullname email avatar username")
     
     if(!projectMember){
         throw new ApiError(401,"Project member is not found.")

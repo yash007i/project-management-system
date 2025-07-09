@@ -5,10 +5,10 @@ const projectCreateValidator = () => {
     return [
         body("name")
             .trim()
-            .isEmpty().withMessage("Project name is required."),
+            .notEmpty().withMessage("Project name is required."),
 
         body("description")
-            .isEmpty().withMessage("Project description is required.")
+            .notEmpty().withMessage("Project description is required.")
             .isLength({ min: 3 })
             .withMessage("Project description must be at least 3 characters long!")
             .isLength({ max: 220 })

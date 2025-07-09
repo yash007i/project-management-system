@@ -8,7 +8,8 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { SubTask } from "../models/subtask.models.js"
 
 const createTask = asyncHandler( async (req, res) => {
-    const{ title, description, projectName, email, status } = req.body
+    const{ title, description, email, status } = req.body
+    const {projectId} = req.params
     const { user } = req.user
     const { attachments } = req.files.map((file) => file)
 
@@ -17,9 +18,7 @@ const createTask = asyncHandler( async (req, res) => {
     }
 
     // Use aggregation in future
-    const project = await Project.findOne({
-        name: projectName
-    })
+    const project = await Project.findById(projectId)
 
     if(!project) {
         throw new ApiError(404, "Project not found.")
@@ -75,7 +74,8 @@ const getTasks = asyncHandler (async (req, res) => {
 
     const task = await Task.find({
         assignedTo : user._id
-    })
+    }).populate("project", "name description createdBy")
+    .populate("assignedBy","fullname email username")
 
     if(!task){
         throw new ApiError(400, "Tasks not assign to you.")
@@ -94,6 +94,9 @@ const getTaskById = asyncHandler (async (req, res) => {
     const { taskId } = req.params.taskId
 
     const task = await Task.findById(taskId)
+    .populate("project", "name description createdBy")
+    .populate("assignedBy","fullname email username")
+    .populate("assignedTo", "fullname email username")
 
     if(!task) {
         throw new ApiError(404, "Task not found for geting task by id.")
@@ -211,6 +214,51 @@ const createSubTask = asyncHandler (async (req, res) => {
     )
 })
 
+const getSubTask = asyncHandler (async (req, res) => {
+    const user = req.user
+
+    const subTasks = await SubTask.find({
+        createdBy: user?._id
+    })
+    .populate("task", "title description project assignedBy")
+    .populate("createdBy","fullname email username")
+
+    if(!subTasks){
+        throw new ApiError(404, "Subtasks not found.")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(
+            200,
+            subTasks,
+            "Subtasks fetched successfully."
+        )
+    )
+})
+
+const getSubTaskById = asyncHandler (async (req, res) => {
+    const {subtaskId} = req.params
+    const user = req.user
+
+    const subTask = await SubTask.findById(subtaskId)
+    .populate("task", "title description project assignedBy")
+    .populate("createdBy","fullname email username")
+
+    if(!subTask || subTask.createdBy !== user ){
+        throw new ApiError(402, "Subtask not found or you are authorized for find this task.")
+    }
+
+    return res.status(200)
+    .json(
+        new ApiResponse(
+            200,
+            subTask,
+            "Subtask fetched successfully."
+        )
+    )
+})
+
 const updateSubTask = asyncHandler (async (req, res) => {
     const { title, isCompleted } = req.body
     const { subTaskId } = req.params
@@ -283,5 +331,7 @@ export {
   getTasks,
   updateSubTask,
   updateTask,
+  getSubTask,
+  getSubTaskById,
 };
   
