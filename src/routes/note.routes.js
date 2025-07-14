@@ -10,19 +10,18 @@ import { UserRolesEnum } from "../utils/constants.js";
 
 const router = Router();
 
-router.route("/note/new/:projectId")
+router.route("/new/:projectId")
 .post(isLoggedIn,
     validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.MEMBER]),
     createProjectNote)
 
-router.route("/note/get-all/:projectId")
+router.route("/get-all/:projectId")
 .get(isLoggedIn,
     validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.MEMBER]),
     getProjectNotes)
 
-router.route("/note/by-id/:noteId")
+router.route("/by-id/:noteId")
 .get(isLoggedIn,
-    validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.MEMBER]),
     getProjectNoteById)
 
 router.route("/note/update/:noteId/:projectId")
@@ -30,9 +29,8 @@ router.route("/note/update/:noteId/:projectId")
     validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.MEMBER]),
     updateProjectNote)
 
-router.route("/note/delete/:noteId")
+router.route("/delete/:noteId")
 .delete(isLoggedIn,
-    validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.MEMBER]),
     deleteProjectNote)
 
 export default router

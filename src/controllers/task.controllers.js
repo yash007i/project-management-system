@@ -6,14 +6,15 @@ import { User } from "../models/user.models.js"
 import { Task } from "../models/task.models.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { SubTask } from "../models/subtask.models.js"
+import mongoose from "mongoose"
 
 const createTask = asyncHandler( async (req, res) => {
     const{ title, description, email, status } = req.body
     const {projectId} = req.params
-    const { user } = req.user
-    const { attachments } = req.files.map((file) => file)
-
-    if(!user || user.role !== "admin") {
+    const user  = req.user
+    const  attachments  = req.files.map((file) => file)
+        
+    if(!user) {
         throw new ApiError(400, "User is not authorized for creating a task.")
     }
 
@@ -40,12 +41,8 @@ const createTask = asyncHandler( async (req, res) => {
         throw new ApiError(401, "Error while creating a task.")
     }
 
-    if( !(attachments.length > 0)) {
-        throw new ApiError(400, "Files not found.")
-    }
-
     const attachmentsUrls = await Promise.all(
-        attachments.map((attachment) => uploadOnCloudinary(attachment)),
+        attachments.map((attachment) => uploadOnCloudinary(attachment.path)),
       );
   
     attachmentsUrls
@@ -70,9 +67,8 @@ const createTask = asyncHandler( async (req, res) => {
 })
 
 const getTasks = asyncHandler (async (req, res) => {
-    const { user } = req.user
-
-    const task = await Task.find({
+    const user = req.user
+    const task = await Task.findOne({
         assignedTo : user._id
     }).populate("project", "name description createdBy")
     .populate("assignedBy","fullname email username")
@@ -85,13 +81,14 @@ const getTasks = asyncHandler (async (req, res) => {
     .json(
         new ApiResponse(
             200,
+            task,
             "Tasks fetch successfully."
         )
     )
 })
 
 const getTaskById = asyncHandler (async (req, res) => {
-    const { taskId } = req.params.taskId
+    const { taskId } = req.params
 
     const task = await Task.findById(taskId)
     .populate("project", "name description createdBy")
@@ -113,9 +110,9 @@ const getTaskById = asyncHandler (async (req, res) => {
 })
 
 const deleteTask = asyncHandler (async (req, res) => {
-    const { taskId } = req.params.taskId
+    const { taskId } = req.params
 
-    const deletedTask = Task.findByIdAndDelete(taskId).select("-_id")
+    const deletedTask = await Task.findByIdAndDelete(taskId).select("-_id")
 
     if(!deletedTask) {
         throw new ApiError(400, "Task not found for deletelation.")
@@ -192,7 +189,7 @@ const updateTask = asyncHandler (async (req, res) => {
 
 const createSubTask = asyncHandler (async (req, res) => {
     const { title, taskId } = req.body
-    const userId = req.user
+    const userId = req.user._id
 
     const newSubTask = await SubTask.create({
         title,
@@ -243,9 +240,9 @@ const getSubTaskById = asyncHandler (async (req, res) => {
 
     const subTask = await SubTask.findById(subtaskId)
     .populate("task", "title description project assignedBy")
-    .populate("createdBy","fullname email username")
-
-    if(!subTask || subTask.createdBy !== user ){
+    .populate("createdBy","fullname email username _id")
+    
+    if(!subTask || subTask.createdBy.email !== user.email ){
         throw new ApiError(402, "Subtask not found or you are authorized for find this task.")
     }
 

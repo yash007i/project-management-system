@@ -17,7 +17,7 @@ import { upload } from "../middlewares/multer.middleware.js"
 
 const router = Router();
 
-router.route("/new-task").post(
+router.route("/new-task/:projectId").post(
     isLoggedIn,
     upload.array("attachments",10),
     createTaskValidator(),

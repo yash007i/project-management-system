@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import { ProjectMember } from "../models/projectmember.models.js"
 import { User } from "../models/user.models.js"
 import mongoose from "mongoose"
+import { AvailableUserRoles, UserRolesEnum } from "../utils/constants.js"
  
 const createProject = asyncHandler (async (req, res) => {
     const { name, description } = req.body
@@ -169,18 +170,32 @@ const deleteProject = asyncHandler (async (req, res) => {
 const addMemberToProject = asyncHandler (async (req, res) => {
     const { projectId, memberId } = req.params
     const userId  = req.user._id
-    console.log(userId);
     
     const user = await User.findById(userId)
-
+    
     if(!user) {
         throw new ApiError(400, "User not found for this project.")
-    }    
-    if(user.role !== "admin" || user.role !== "project_admin"){
+    }
+
+    if(user.role !== UserRolesEnum.ADMIN && user.role !== "project_admin"){
+        console.log(user.role);
         throw new ApiError(
             403,
             "You are not authorized to add members to this project",
         );
+    }
+
+    const existedMember = await ProjectMember.findOne(
+        {
+            user : memberId
+        }
+    )
+        
+    if(existedMember){
+        throw new ApiError(
+            401,
+            "This user is already part of project."
+        )
     }
 
     const newProjectMember = await ProjectMember.create({
@@ -209,7 +224,7 @@ const getProjectMembers = asyncHandler (async (req, res) => {
         throw new ApiError(404, "Project not found for this id.")
     }
     
-    const projectMember = await ProjectMember.findById({
+    const projectMember = await ProjectMember.findOne({
         project : projectId
     }).populate("project", "name description createdBy")
         .populate("user", "fullname email avatar username")
@@ -232,16 +247,20 @@ const deleteMember = asyncHandler (async (req, res) => {
     const { memberId } = req.params;
     const userId = req.user._id;
 
-    const user = await User.findById(userId).select("role");
-    if (user.role !== "admin" || user.role !== "project_admin") {
+    const user = await User.findById(userId)
+    
+    if (user.role !== "admin" && user.role !== "project_admin") {
         throw new ApiError(
         403,
         "You are not authorized to delete members from this project",
         );
     }
 
-    const deletedMember = await ProjectMember.findByIdAndDelete(memberId);
-
+    const deletedMember = await ProjectMember.findOneAndDelete({
+        user : memberId
+    });
+    console.log(deletedMember);
+    
     if (!deletedMember) {
         throw new ApiError(404, "Member not found");
     }
@@ -255,8 +274,8 @@ const updateMemberRole = asyncHandler (async (req,res) => {
     const { role } = req.body
     const { userId } = req.user._id
 
-    const user = await User.findById(userId).select("role");
-    if (user.role !== "admin" || user.role !== "project_admin") {
+    const user = await User.findById(userId)
+    if (user.role !== "admin" && user.role !== "project_admin") {
       throw new ApiError(
         403,
         "You are not authorized to update role of this member",
@@ -265,7 +284,7 @@ const updateMemberRole = asyncHandler (async (req,res) => {
 
     const updatedMember = await ProjectMember.findByIdAndUpdate(
         {
-          _id: memberId,
+          user: memberId,
         },
         {
           $set: {

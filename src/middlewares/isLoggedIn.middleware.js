@@ -47,10 +47,12 @@ const validateProjectPermission = (roles = []) => asyncHandler (async (req,res,n
     }
 
     const project = await ProjectMember.findOne({
-        project : mongoose.Types.ObjectId(projectId),
-        user : mongoose.Types.ObjectId(req.user._id),
+        $or: [
+            { project: projectId },
+            { user: req.user._id },
+        ]
     });
-
+    
     if(!project) {
         throw new ApiError(401, "Project is invalid")
     }
