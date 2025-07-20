@@ -38,7 +38,8 @@ const fileSchema = new Schema(
 
     // Ownership and hierarchy
     userId: {
-      type: String, // or Schema.Types.ObjectId if you have a separate User collection
+      type: Schema.Types.ObjectId, 
+      ref: "User",
       required: true,
     },
     parentId: {

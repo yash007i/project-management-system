@@ -2,6 +2,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { File } from "../models/file.models.js";
+import {
+  deleteFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 
 const createFolder = asyncHandler(async (req, res) => {
   const user = req.user;
@@ -82,7 +86,7 @@ const getFilesByUserId = asyncHandler(async (req, res) => {
 });
 
 const uploadFiles = asyncHandler(async (req, res) => {
-  const userId = req.user?.id;
+  const userId = req.user?._id;
   const parentId = req.body.parentId || null;
 
   if (!req.file) {
@@ -138,3 +142,100 @@ const uploadFiles = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, fileDoc, "File upload successfully."));
 });
+
+const deleteFiles = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  const { fileId } = req.params;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthroized User.");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(fileId)) {
+    throw new ApiError(400, "Invalid file id.");
+  }
+
+  const file = await File.findOne({ _id: fileId, userId });
+
+  if (!file) {
+    throw new ApiError(404, "File not found.");
+  }
+
+  if (!file.isFolder && file.fileUrl) {
+    await deleteFromCloudinary(file.fileUrl);
+  }
+
+  const deletedFile = await File.deleteOne({ _id: fileId });
+
+  if (!deletedFile) {
+    throw new ApiError(500, "Error while deleting file.");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, deletedFile, "File deleted successfully."));
+});
+
+const updateStartStatus = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const { fileId } = req.params;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthroized User.");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(fileId)) {
+    throw new ApiError(400, "Invalid file id.");
+  }
+
+  const file = await File.findOne({ _id: fileId, userId });
+
+  if (!file) {
+    throw new ApiError(404, "File not found.");
+  }
+
+  file.isStarred = !file.isStarred;
+  await file.save();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, file, "File start status changed successfully."),
+    );
+});
+
+const updateTrashStatus = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const { fileId } = req.params;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthroized User.");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(fileId)) {
+    throw new ApiError(400, "Invalid file id.");
+  }
+
+  const file = await File.findOne({ _id: fileId, userId });
+
+  if (!file) {
+    throw new ApiError(404, "File not found.");
+  }
+
+  file.isTrash = !file.isTrash;
+  await file.save();
+  const action = file.isTrash ? "moved to trash" : "restored";
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, file, `File ${action} successfully.`));
+});
+
+export {
+  createFolder,
+  getFilesByUserId,
+  uploadFiles,
+  deleteFiles,
+  updateStartStatus,
+  updateTrashStatus,
+};
