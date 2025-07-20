@@ -299,7 +299,7 @@ const deleteMember = asyncHandler(async (req, res) => {
 const updateMemberRole = asyncHandler(async (req, res) => {
   const { memberId } = req.params;
   const { role } = req.body;
-  const { userId } = req.user._id;
+  const userId  = req.user._id;
 
   const user = await User.findById(userId);
   if (user.role !== "admin" && user.role !== "project_admin") {
