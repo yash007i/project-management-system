@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -20,7 +20,8 @@ import {
   Kanban,
   Flag,
   Target,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,8 @@ import { ProjectDialog } from '@/components/projects/ProjectDialog';
 import { ProjectFilters } from '@/components/projects/ProjectFilters';
 import { ShareDialog } from '@/components/projects/ShareDialog';
 import { cn } from '@/lib/utils';
+import { usePojectStore } from '@/store/useProjectStore';
+import { useAuthStore } from '@/store/useAuthStore';
 
 
 const Projects = () => {
@@ -62,91 +65,17 @@ const Projects = () => {
   const [dialogMode, setDialogMode] = useState('create');
   const [selectedProject, setSelectedProject] = useState(null);
   const [filters, setFilters] = useState({ status: [], priority: [] });
+  const [projects, setProjects] = useState(null);
+  const { userProjects, getUserProjects, createProject} = usePojectStore();
+  const {authUser} = useAuthStore();
 
-  const [projects, setProjects] = useState([
-    {
-      id: 1,
-      name: "Website Redesign",
-      description: "Complete overhaul of company website with modern design",
-      status: "in progress",
-      progress: 75,
-      members: [
-        { id: 1, name: "John Doe", email: "john@example.com" },
-        { id: 2, name: "Jane Smith", email: "jane@example.com" },
-        { id: 3, name: "Bob Wilson", email: "bob@example.com" },
-        { id: 4, name: "Alice Brown", email: "alice@example.com" },
-        { id: 5, name: "Charlie Davis", email: "charlie@example.com" }
-      ],
-      dueDate: "2024-02-15",
-      priority: "high",
-      tasks: 24,
-      completedTasks: 18,
-      createdAt: "2024-01-10",
-      manager: "John Doe"
-    },
-    {
-      id: 2,
-      name: "Mobile App Development",
-      description: "Native iOS and Android app for customer engagement",
-      status: "in progress",
-      progress: 45,
-      members: [
-        { id: 1, name: "Sarah Johnson", email: "sarah@example.com" },
-        { id: 2, name: "Mike Chen", email: "mike@example.com" },
-        { id: 3, name: "Lisa Wang", email: "lisa@example.com" },
-        { id: 4, name: "David Kim", email: "david@example.com" },
-        { id: 5, name: "Emma Wilson", email: "emma@example.com" },
-        { id: 6, name: "Tom Anderson", email: "tom@example.com" },
-        { id: 7, name: "Rachel Green", email: "rachel@example.com" },
-        { id: 8, name: "Alex Taylor", email: "alex@example.com" }
-      ],
-      dueDate: "2024-03-20",
-      priority: "high",
-      tasks: 36,
-      completedTasks: 16,
-      createdAt: "2024-01-05",
-      manager: "Sarah Johnson"
-    },
-    {
-      id: 3,
-      name: "Database Migration",
-      description: "Migrate legacy database to cloud infrastructure",
-      status: "completed",
-      progress: 100,
-      members: [
-        { id: 1, name: "Mike Wilson", email: "mike@example.com" },
-        { id: 2, name: "Anna Davis", email: "anna@example.com" },
-        { id: 3, name: "James Lee", email: "james@example.com" }
-      ],
-      dueDate: "2024-01-30",
-      priority: "medium",
-      tasks: 12,
-      completedTasks: 12,
-      createdAt: "2023-12-15",
-      manager: "Mike Wilson"
-    },
-    {
-      id: 4,
-      name: "Marketing Campaign",
-      description: "Q1 digital marketing campaign for product launch",
-      status: "not started",
-      progress: 20,
-      members: [
-        { id: 1, name: "Emily Davis", email: "emily@example.com" },
-        { id: 2, name: "Chris Brown", email: "chris@example.com" },
-        { id: 3, name: "Sophie Miller", email: "sophie@example.com" },
-        { id: 4, name: "Ryan Clark", email: "ryan@example.com" },
-        { id: 5, name: "Kelly Johnson", email: "kelly@example.com" },
-        { id: 6, name: "Mark Thompson", email: "mark@example.com" }
-      ],
-      dueDate: "2024-04-01",
-      priority: "medium",
-      tasks: 18,
-      completedTasks: 4,
-      createdAt: "2024-01-20",
-      manager: "Emily Davis"
-    }
-  ]);
+useEffect(() => {
+  getUserProjects(); // fetch data
+}, [getUserProjects]);
+
+useEffect(() => {
+  setProjects(userProjects); // update local state when data changes
+}, [userProjects]);
 
   const filterOptions = [
     { label: "All Projects", value: "all", icon: LayoutGrid },
@@ -156,7 +85,7 @@ const Projects = () => {
     { label: "On Hold", value: "on hold", icon: Flag },
   ];
 
-  const filteredProjects = projects.filter(project => {
+  const filteredProjects = projects?.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
@@ -199,23 +128,10 @@ const Projects = () => {
     });
   };
 
-  const handleProjectSubmit = (data) => {
+  const handleProjectSubmit = async (data) => {
     if (dialogMode === 'create') {
-      const newProject = {
-        id: Math.max(...projects.map(p => p.id)) + 1,
-        name: data.name,
-        description: data.description,
-        status: data.status,
-        progress: 0,
-        members: [],
-        dueDate: data.dueDate.toISOString().split('T')[0],
-        priority: data.priority,
-        tasks: 0,
-        completedTasks: 0,
-        createdAt: new Date().toISOString().split('T')[0],
-        manager: "Current User"
-      };
-      setProjects([...projects, newProject]);
+      await createProject(data);
+      setProjects(projects);
       toast({
         title: "Project created!",
         description: `${data.name} has been created successfully.`,
@@ -381,7 +297,7 @@ const Projects = () => {
 
           {/* Projects Grid/List */}
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-            {filteredProjects.map((project) => (
+            {filteredProjects?.map((project) => (
               <Card key={project.id} className="group hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer hover:card-glow"
                     onClick={() => handleProjectClick(project.id)}>
                 <CardHeader className="pb-3">
@@ -444,38 +360,26 @@ const Projects = () => {
 
                 <CardContent>
                   {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">Progress</span>
-                      <span className="text-sm font-medium">{project.progress}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${project.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
+                  
                   {/* Project Details */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-sm">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Users className="h-4 w-4" />
-                          <span>{project.members.length}</span>
+                          <span>{project.memberCount}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        {/* <div className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-4 w-4" />
                           <span>{project.completedTasks}/{project.tasks}</span>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
                       <div>
                         <span className="block">Manager:</span>
-                        <span className="font-medium text-foreground">{project.manager}</span>
+                        <span className="font-medium text-foreground">{authUser.fullname}</span>
                       </div>
                       <div>
                         <span className="block">Created:</span>
@@ -492,7 +396,7 @@ const Projects = () => {
             ))}
           </div>
 
-          {filteredProjects.length === 0 && (
+          {filteredProjects?.length === 0 && (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground">No projects found</h3>

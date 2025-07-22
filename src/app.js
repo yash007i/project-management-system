@@ -2,7 +2,8 @@ import express from "express";
 import { urlencoded } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-
+import dotenv from "dotenv";
+dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(
@@ -12,7 +13,7 @@ app.use(
 );
 app.use(
   cors({
-    origin: `localhost:${process.env.PORT}`,
+    origin: `http://localhost:${process.env.FRONTEND_PORT}`,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
