@@ -27,7 +27,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -54,7 +53,6 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 const Projects = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -66,7 +64,7 @@ const Projects = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [filters, setFilters] = useState({ status: [], priority: [] });
   const [projects, setProjects] = useState(null);
-  const { userProjects, getUserProjects, createProject} = usePojectStore();
+  const { userProjects, getUserProjects, createProject, updateProject, deleteProject} = usePojectStore();
   const {authUser} = useAuthStore();
 
 useEffect(() => {
@@ -111,9 +109,10 @@ useEffect(() => {
     setShowProjectDialog(true);
   };
 
-  const handleDeleteProject = (project) => {
+  const handleDeleteProject = async (project) => {
+    console.log(project);
+    await deleteProject(project._id)
     setSelectedProject(project);
-    setShowDeleteDialog(true);
   };
 
   const handleShareProject = (project) => {
@@ -121,42 +120,19 @@ useEffect(() => {
     setShowShareDialog(true);
   };
 
-  const handleProjectSettings = (project) => {
-    toast({
-      title: "Project Settings",
-      description: `Opening settings for "${project.name}"`,
-    });
-  };
+  const handleProjectSubmit = async (data, projectId) => {
+  if (dialogMode === 'create') {
+    await createProject(data);
+  } else if (dialogMode === 'edit' && projectId) {
+    await updateProject(data, projectId);
+  }
+};
 
-  const handleProjectSubmit = async (data) => {
-    if (dialogMode === 'create') {
-      await createProject(data);
-      setProjects(projects);
-      toast({
-        title: "Project created!",
-        description: `${data.name} has been created successfully.`,
-      });
-    } else if (selectedProject) {
-      setProjects(projects.map(p => 
-        p.id === selectedProject.id 
-          ? { ...p, ...data, dueDate: data.dueDate.toISOString().split('T')[0] }
-          : p
-      ));
-      toast({
-        title: "Project updated!",
-        description: `${data.name} has been updated successfully.`,
-      });
-    }
-  };
 
   const confirmDelete = () => {
     if (selectedProject) {
       setProjects(projects.filter(p => p.id !== selectedProject.id));
-      toast({
-        title: "Project deleted!",
-        description: `${selectedProject.name} has been deleted.`,
-        variant: "destructive",
-      });
+      //
       setShowDeleteDialog(false);
       setSelectedProject(null);
     }
@@ -299,7 +275,7 @@ useEffect(() => {
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
             {filteredProjects?.map((project) => (
               <Card key={project.id} className="group hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer hover:card-glow"
-                    onClick={() => handleProjectClick(project.id)}>
+                    onClick={() => handleProjectClick(project._id)}>
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -317,11 +293,11 @@ useEffect(() => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleProjectClick(project.id); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleProjectClick(project._id); }}>
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/projects/${project.id}`); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/projects/${project._id}`); }}>
                           <Kanban className="h-4 w-4 mr-2" />
                           Open Kanban
                         </DropdownMenuItem>
@@ -329,19 +305,18 @@ useEffect(() => {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Project
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleShareProject(project); }}>
-                          <Share2 className="h-4 w-4 mr-2 text-green-600" />
+                        <DropdownMenuItem 
+                        className="text-blue-600"
+                        onClick={(e) => { e.stopPropagation(); handleShareProject(project); }}>
+                          <Share2 className="h-4 w-4 mr-2 text-blue-600" />
                           Share
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleProjectSettings(project); }}>
-                          <Settings className="h-4 w-4 mr-2 text-gray-600" />
-                          Settings
-                        </DropdownMenuItem>
+                        
                         <DropdownMenuItem 
                           onClick={(e) => { e.stopPropagation(); handleDeleteProject(project); }} 
                           className="text-destructive"
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
+                          <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -413,6 +388,7 @@ useEffect(() => {
         onSubmit={handleProjectSubmit}
         mode={dialogMode}
         initialData={selectedProject ? {
+          _id : selectedProject._id,
           name: selectedProject.name,
           description: selectedProject.description,
           dueDate: new Date(selectedProject.dueDate),

@@ -9,6 +9,7 @@ import { getProjects,
     deleteMember,
     deleteProject,
     updateMemberRole,
+    getUserProject,
  } from "../controllers/project.controllers.js";
 import { validate } from "../middlewares/validator.middlewares.js";
 import { projectCreateValidator, projectMemberRoleValidator } from "../validators/project.validators.js";
@@ -22,6 +23,7 @@ router.route("/new-project").post(
     createProject)
 
 router.route("/get-projects").get(isLoggedIn, getProjects)
+router.route("/get-user-projects").get(isLoggedIn, getUserProject)
 router.route("/get-project-by-id/:projectId").get(isLoggedIn, getProjectById)
 router.route("/update-project/:projectId").put(
     isLoggedIn,

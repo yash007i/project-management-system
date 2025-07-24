@@ -6,7 +6,8 @@ import { registerUser,
     getCurrentUser,
     refreshAccessToken,
     forgotPassword,
-    resendEmailVerification} from "../controllers/user.controllers.js"
+    resendEmailVerification,
+    checkUser} from "../controllers/user.controllers.js"
 import { forgotPasswordValidator, userLoginValidator, userRegistrationValidator } from "../validators/user.validators.js";
 import { validate } from "../middlewares/validator.middlewares.js";
 import { upload } from "../middlewares/multer.middleware.js"
@@ -34,5 +35,6 @@ router.route("/get-user").get(isLoggedIn, getCurrentUser)
 router.route("/refresh-token").get(refreshAccessToken)
 router.route("/forgot-password").post(forgotPasswordValidator(), validate, forgotPassword)
 router.route("/resend-email").get(resendEmailVerification)
+router.route("/check-user").get(isLoggedIn, checkUser)
 
 export default router

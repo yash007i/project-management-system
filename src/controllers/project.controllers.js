@@ -9,12 +9,29 @@ import { AvailableUserRoles, UserRolesEnum } from "../utils/constants.js";
 
 // Optional helper to parse dd-mm-yyyy into JS Date
 function parseDueDate(dueDateStr) {
-  const [day, month, year] = dueDateStr.split("-");
-  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-  if (isNaN(date.getTime())) {
-    throw new ApiError(400, "Invalid due date format. Use dd-mm-yyyy.");
+  // Try dd-mm-yyyy format first
+  const ddmmyyyyMatch = /^(\d{2})-(\d{2})-(\d{4})$/;
+  if (ddmmyyyyMatch.test(dueDateStr)) {
+    const [day, month, year] = dueDateStr.split("-");
+    const date = new Date(Date.UTC(+year, +month - 1, +day));
+    if (
+      isNaN(date.getTime()) ||
+      date.getUTCFullYear() !== +year ||
+      date.getUTCMonth() !== +month - 1 ||
+      date.getUTCDate() !== +day
+    ) {
+      throw new ApiError(400, "Invalid due date format. Use dd-mm-yyyy.");
+    }
+    return date;
   }
-  return date;
+
+  // Try parsing ISO 8601 string
+  const date = new Date(dueDateStr);
+  if (!isNaN(date.getTime())) {
+    return date;
+  }
+
+  throw new ApiError(400, "Invalid due date format. Use dd-mm-yyyy.");
 }
 
 const createProject = asyncHandler(async (req, res) => {
@@ -82,12 +99,34 @@ const getProjects = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, projects, "Projects found successfully"));
 });
+const getUserProject = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // Step 1: Find all project IDs where user is a member
+  const memberProjects = await ProjectMember.find({ user: userId }).select(
+    "project",
+  );
+  const memberProjectIds = memberProjects.map((pm) => pm.project);
+
+  // Step 2: Find all projects where user is the creator or member
+  const projects = await Project.find({
+    $or: [{ createdBy: userId }, { _id: { $in: memberProjectIds } }],
+  }).populate("createdBy", "avatar fullname email username");
+
+  if (!projects || projects.length === 0) {
+    throw new ApiError(404, "No projects found for this user");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, projects, "Projects found successfully"));
+});
 
 const getProjectById = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   console.log(projectId);
 
-  const project = await Project.aggregate([
+  const projectResult = await Project.aggregate([
     {
       $match: {
         _id: new mongoose.Types.ObjectId(projectId),
@@ -108,6 +147,11 @@ const getProjectById = asyncHandler(async (req, res) => {
       $project: {
         name: 1,
         description: 1,
+        priority: 1,
+        status: 1,
+        dueDate: 1,
+        memberCount: 1,
+        members: 1,
         createdBy: {
           fullname: 1,
           email: 1,
@@ -116,8 +160,9 @@ const getProjectById = asyncHandler(async (req, res) => {
         },
       },
     },
+    { $limit: 1 }
   ]);
-
+  const project = projectResult[0];
   if (!project) {
     throw new ApiError(404, "Project not found.");
   }
@@ -149,14 +194,12 @@ const updateProject = asyncHandler(async (req, res) => {
   }
 
   if (dueDate) {
-    const [day, month, year] = dueDate.split("-");
-    const parsedDate = new Date(`${year}-${month}-${day}T00:00:00Z`);
-    if (isNaN(parsedDate.getTime())) {
-      throw new ApiError(400, "Invalid due date format. Use dd-mm-yyyy.");
-    }
+    const parsedDate = parseDueDate(dueDate);
+
     if (parsedDate < new Date()) {
       throw new ApiError(400, "Due date cannot be in the past.");
     }
+
     project.dueDate = parsedDate;
   }
 
@@ -172,20 +215,19 @@ const updateProject = asyncHandler(async (req, res) => {
 
   await project.save();
 
-  if(!project) {
-    throw new ApiError(401, "Error while updating project.")
+  if (!project) {
+    throw new ApiError(401, "Error while updating project.");
   }
-  return res
-    .status(200)
-    .json(200, project, "Project update successfully.");
+  return res.status(200).json(new ApiResponse(
+    200,
+    project,
+    "Project updated successfully."
+  ));
 });
 
 const deleteProject = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-
-  const deletedProject = await Project.findByIdAndDelete({
-    project: projectId,
-  });
+  const deletedProject = await Project.findByIdAndDelete(projectId);
 
   if (!deletedProject) {
     throw new ApiError(400, "Error while delete a project");
@@ -299,7 +341,7 @@ const deleteMember = asyncHandler(async (req, res) => {
 const updateMemberRole = asyncHandler(async (req, res) => {
   const { memberId } = req.params;
   const { role } = req.body;
-  const userId  = req.user._id;
+  const userId = req.user._id;
 
   const user = await User.findById(userId);
   if (user.role !== "admin" && user.role !== "project_admin") {
@@ -340,4 +382,5 @@ export {
   getProjects,
   updateMemberRole,
   updateProject,
+  getUserProject,
 };

@@ -3,7 +3,8 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.models.js"
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ProjectMember } from "../models/projectmember.models.js";
-import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
 
 const isLoggedIn = async (req, res, next) => {
     // Follow this step : 
@@ -14,14 +15,14 @@ const isLoggedIn = async (req, res, next) => {
     // store user in req
     // next();
 
-    const { accessToken } = req.cookies;
-
+    const {accessToken}  = req.cookies;
+    
     if(!accessToken) {
         throw new ApiError(405, "Unauthorized user.");
     }
 
     try {
-        const decodedToken = await jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
+        const decodedToken = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
         const user = await User.findById(decodedToken._id)
         .select("-password -refreshToken");
 

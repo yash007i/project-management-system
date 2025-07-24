@@ -2,8 +2,9 @@ import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { type } from "os";
 import { AvailableUserRoles, UserRolesEnum } from "../utils/constants.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const userSchema = new Schema(
   {
