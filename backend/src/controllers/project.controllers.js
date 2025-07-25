@@ -144,6 +144,14 @@ const getProjectById = asyncHandler(async (req, res) => {
       $unwind: "$createdBy",
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "members",
+        foreignField: "_id",
+        as: "memberDetails", // this will be a populated array
+      },
+    },
+    {
       $project: {
         name: 1,
         description: 1,
@@ -158,6 +166,13 @@ const getProjectById = asyncHandler(async (req, res) => {
           username: 1,
           avatar: 1,
         },
+        memberDetails: {
+          _id: 1,
+          fullname: 1,
+          email: 1,
+          username: 1,
+          avatar: 1,
+        }, 
       },
     },
     { $limit: 1 }
@@ -239,50 +254,71 @@ const deleteProject = asyncHandler(async (req, res) => {
 });
 
 const addMemberToProject = asyncHandler(async (req, res) => {
-  const { projectId, memberId } = req.params;
+  const { projectId } = req.params;
+  const { email, role } = req.body; 
   const userId = req.user._id;
 
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new ApiError(400, "User not found for this project.");
+  // Find current user making the request
+  const currentUser = await User.findById(userId);
+  if (!currentUser) {
+    throw new ApiError(400, "Requesting user not found.");
   }
 
-  if (user.role !== UserRolesEnum.ADMIN && user.role !== "project_admin") {
-    console.log(user.role);
+  // Check if user is authorized (admin or project_admin)
+  if (
+    currentUser.role !== UserRolesEnum.ADMIN &&
+    currentUser.role !== "project_admin"
+  ) {
+    console.log(currentUser.role);
     throw new ApiError(
       403,
-      "You are not authorized to add members to this project",
+      "You are not authorized to add members to this project"
     );
   }
 
+  // 🔍 Find member by email
+  const member = await User.findOne({ email });
+  if (!member) {
+    throw new ApiError(404, "User with this email not found.");
+  }
+
+  // Check if already part of project
   const existedMember = await ProjectMember.findOne({
-    user: memberId,
+    user: member._id,
+    project: projectId,
   });
 
   if (existedMember) {
-    throw new ApiError(401, "This user is already part of project.");
+    throw new ApiError(409, "This user is already part of the project.");
   }
 
+  // Create new project member
   const newProjectMember = await ProjectMember.create({
     project: projectId,
-    user: memberId,
+    user: member._id,
+    role: role || 'member', // optional, default role
   });
 
   if (!newProjectMember) {
-    throw new ApiError(400, "Project member creation failed");
+    throw new ApiError(400, "Failed to add project member.");
   }
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        newProjectMember,
-        "Add new member in project successfully.",
-      ),
-    );
+  const updatedProject = await Project.findByIdAndUpdate(
+    projectId,
+    { $addToSet: { members: member._id } }, // $addToSet prevents duplicates
+    { new: true }
+  );
+  
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      newProjectMember,
+      "Member added to project successfully."
+    )
+  );
 });
+
 
 const getProjectMembers = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -291,7 +327,7 @@ const getProjectMembers = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Project not found for this id.");
   }
 
-  const projectMember = await ProjectMember.findOne({
+  const projectMember = await ProjectMember.find({
     project: projectId,
   })
     .populate("project", "name description createdBy")
@@ -333,6 +369,7 @@ const deleteMember = asyncHandler(async (req, res) => {
   if (!deletedMember) {
     throw new ApiError(404, "Member not found");
   }
+
   return res
     .status(200)
     .json(new ApiResponse(200, "Member deleted", deletedMember));

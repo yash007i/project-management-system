@@ -35,7 +35,7 @@ router.route("/delete-project/:projectId").delete(isLoggedIn, deleteProject)
 
 
 router.route("/project-member/:projectId").get(isLoggedIn,getProjectMembers)
-router.route("/add-member/:projectId/:memberId").post(isLoggedIn, addMemberToProject)
+router.route("/add-member/:projectId").post(isLoggedIn, addMemberToProject)
 router.route("/delete-member/:memberId").delete(isLoggedIn, deleteMember)
 router.route("/update-role/:memberId").put(
     isLoggedIn,
