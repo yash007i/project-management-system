@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 export const usePojectStore = create((set) => ({
   userProjects: [],
+  projectMembers: [],
   project: null,
   isProjects: false,
   isCreatingProject: false,
@@ -28,8 +29,7 @@ export const usePojectStore = create((set) => ({
     try {
       const res = await axiosInstance.get(
         `/projects/get-project-by-id/${projectId}`,
-      );
-      console.log(res.data.data);      
+      );      
       set({ project: res.data.data });
     } catch (error) {
       console.log("Error while get project", error);
@@ -96,10 +96,57 @@ export const usePojectStore = create((set) => ({
       set((state) => ({
       userProjects: state.userProjects.filter((project) => project._id !== projectId),
     }));
-
     toast.success("Project deleted successfully.");
     } catch (error) {
       console.log("Error while deleting project.", error);
+    } finally {
+      set({isLoading: false});
     }
   },
+
+  addMember: async (data, projectId) => {
+    set({isLoading : true})
+    try {
+      const res = await axiosInstance.post(`/projects/add-member/${projectId}`, data);
+      console.log("Add", res.data.data);
+      set((state) => ({
+        projectMembers: [...state.projectMembers, res.data.data],
+      }));
+      toast.success("Member add successfully.");
+    } catch (error) {
+      console.log("Error while adding member.", error);      
+    } finally {
+      set({isLoading : false});
+    }
+  },
+
+  getProjectMembers: async (projectId) => {
+    set({isLoading: true})
+    try {
+      const res = await axiosInstance.get(`/projects/project-member/${projectId}`);
+      set({projectMembers: res.data.data})
+      console.log("GEt", res.data.data);
+      
+    } catch (error) {
+      console.log("Error while get project members.", error);      
+    } finally{
+      set({isLoading: false})
+    }
+  },
+
+  removeProjectMember: async (memberId) => {
+    set({isLoading: true})
+
+    try {
+      const res = await axiosInstance.delete(`/projects/delete-member/${memberId}`)
+      set((state) => ({
+      projectMembers: state.projectMembers.filter((member) => member._id !== memberId),
+    }))
+    console.log("remove",res.data.data);    
+    } catch (error) {
+      console.log("Error while removeing member", error);      
+    } finally {
+      set({isLoading: false});
+    }
+  }
 }));

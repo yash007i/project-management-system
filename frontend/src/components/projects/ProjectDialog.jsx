@@ -80,6 +80,7 @@ export const ProjectDialog = ({
   const form = useForm({
     resolver: zodResolver(projectSchema),
     defaultValues: {
+      _id : initialData?._id,
       name: initialData?.name || '',
       description: initialData?.description || '',
       dueDate: initialData?.dueDate || new Date(),
@@ -89,7 +90,7 @@ export const ProjectDialog = ({
   });
 
   const handleSubmit = (data) => {
-    onSubmit(data);
+    onSubmit(data,  initialData?._id);
     form.reset();
     onOpenChange(false);
   };
@@ -101,7 +102,7 @@ export const ProjectDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-gradient-to-br from-blue-50/80 to-indigo-50/80 dark:from-blue-950/20 dark:to-indigo-950/20">
+      <DialogContent className="sm:max-w-[500px] bg-gradient-to-br from-blue-50/95 to-indigo-50/95 dark:from-blue-950/20 dark:to-indigo-950/20">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             {mode === 'create' ? (
@@ -273,7 +274,7 @@ export const ProjectDialog = ({
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date < new Date("1900-01-01")}
+                        disabled={(date) => date < new Date("01-01-1900")}
                         initialFocus
                         className="p-3 pointer-events-auto"
                       />
